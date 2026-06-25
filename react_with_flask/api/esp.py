@@ -1,10 +1,11 @@
 
 class ESP:
-	def __init__(self,n,desc):
+	def __init__(self,n,desc,m="-1"):
 		self.name = n
 		self.description = desc
 		self.lighting = 0 # 0 is off, anything else is on TODO: maybe want to add move
 		self.lastCheckIn = -1 #We need to have some kind of heartbeat / check in process
+		self.mac  = m # Mac address of ESP, should be unique
 
 	def toString(self):
 		return self.name + "," + self.description

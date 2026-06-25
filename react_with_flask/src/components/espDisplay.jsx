@@ -13,24 +13,62 @@ function Toggle( { toggleState, lZero, lOne, onC} ){
 	)
 }
 
+//onC is passing up the text value of the field
+function Field( { value , onC } ){
+	
+	return(
+		<input type="text" value={value} onChange={(e) => onC(e.target.value)} />
+	);
+}
+
 // espIn is just the name of the ESP node
 //    This should then ask the API for detail for that node
-function ESP( { espIn, onPowerClick }){
+function ESP( { espIn, onPowerClick, onEditEnd }){
+	const [editMode, setEditMode] = useState(false)
+	const [workingName, setWorkingName] = useState(espIn.name)
+	const [workingDesc, setWorkingDesc] = useState(espIn.description)
+
+	//We don't want to do anything if selected other than change form context
+	//Once it changes to off, we want to make an API call
+	function handleEditMode(){
+		if(editMode){
+			//alert('API CALL! with ' + workingName + ' and ' + workingDesc)
+			onEditEnd(espIn.name, workingName, workingDesc)
+		}
+
+		setEditMode(!editMode)
+	}
 
 	return(
 		<>
-			<h3>Name: {espIn.name}</h3>
+			<h3>Name: {(	editMode ?
+					<Field key="espName" value={workingName} onC={(v) => setWorkingName(v)} /> :
+					espIn.name
+				 )} </h3>
 			<ul>
 				<li>Index: {espIn.index}</li>
-				<li>Description: {espIn.description}</li>
+				<li>Description: {(
+							editMode ?
+							<Field key="espDesc" value={workingDesc} onC={(v) => setWorkingDesc(v)} /> :
+							espIn.description
+						)}</li>
 				<li>{(espIn.lighting ? "Lights are On!" : "Lights are off"
 				)}</li>
 				<li>
 				<Toggle onC={() => onPowerClick(espIn.name)}
 					toggleState={espIn.lighting}
 					lZero="Turn lights on"
-					lOne="Turn lights off" />
+					lOne="Turn lights off" />				
 				</li>
+				<li> 
+					<label>
+						<input type="checkbox"
+							checked = {editMode}
+							onChange = {handleEditMode}
+						 />
+						Edit Info
+					</label>
+				 </li>
 			</ul>
 		</>
 	)
@@ -96,7 +134,7 @@ export default function ESPStatus(){
 		});
 	}, [getESPList]); //I may want to add dependencies if I have buttons here
 
-	// Hangle the toggle for the power button in the ESP object
+	// Handle the toggle for the power button in the ESP object
 	function handlePowerToggle(espName){
 		//alert('Power Button Pressed for ESP: ' + espName)
 		const curEsp = espList.filter(esp => esp.name === espName)[0]; //The last zero just returns the first item
@@ -119,6 +157,27 @@ export default function ESPStatus(){
 		catch( (err) => console.log('Error with posting power button toggle') );
 	} //End of handlePowerToggle
 
+	//Handle what happens when an edit button is un-selected
+	function handleEditEnd( oldName, newName, newDesc ){
+		//alert('Edit End for ' + oldName + " | " + newName + " | " + newDesc) 
+		const curEsp = espList.filter(esp => esp.name === oldName)[0]; //The last zero just returns the first item
+
+		//Send description first to keep oldName the same until changing it
+		const pMessage = {"oldName":oldName,"newName":newName,"newDesc":newDesc}
+		axios.post('/api/ConfigureESP/',pMessage).
+		then( (res) => {
+			console.log('Return in: ' + JSON.stringify(res.data))
+			setEspList(espList.map(esp => {
+                                if(esp.name === oldName){ //Only update the one element whose lighting changed
+                                        return {...esp, name: newName, description:newDesc};
+                                } else {
+                                        return esp;
+                                }
+                        }));
+		});
+
+	} //End of handleEditEnd
+
         return(
           <>
 		<h2>Current ESP List</h2>
@@ -131,6 +190,7 @@ export default function ESPStatus(){
 				<li key={esp.name}>
 					<ESP espIn={esp}
 					     onPowerClick={handlePowerToggle}
+					     onEditEnd={handleEditEnd}
 					/>
 				</li>
 			)}
